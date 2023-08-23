@@ -6,7 +6,6 @@ import com.lampirg.json.TicketList;
 import lombok.SneakyThrows;
 
 import java.io.File;
-import java.io.IOException;
 
 public class Main {
 
