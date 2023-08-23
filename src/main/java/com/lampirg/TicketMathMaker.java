@@ -26,14 +26,7 @@ public class TicketMathMaker {
                     Integer::sum
             );
         }
-        double div = pricesCount.entrySet().stream()
-                .collect(
-                        Collectors.teeing(
-                                collectMedian(),
-                                Collectors.summarizingInt(entry -> entry.getKey() * entry.getValue()),
-                                (median, average) -> average.getAverage() - median.doubleValue()
-                        )
-                );
+        double div = countDiv(pricesCount);
         return new Result(minTimeForCarrier, div);
     }
 
@@ -45,6 +38,17 @@ public class TicketMathMaker {
         if (oldVal.compareTo(newVal) < 0)
             return oldVal;
         return newVal;
+    }
+
+    private static Double countDiv(Map<Integer, Integer> pricesCount) {
+        return pricesCount.entrySet().stream()
+                .collect(
+                        Collectors.teeing(
+                                collectMedian(),
+                                Collectors.summarizingInt(entry -> entry.getKey() * entry.getValue()),
+                                (median, average) -> average.getAverage() - median.doubleValue()
+                        )
+                );
     }
 
     private static Collector<Map.Entry<Integer, Integer>, ?, Integer> collectMedian() {
