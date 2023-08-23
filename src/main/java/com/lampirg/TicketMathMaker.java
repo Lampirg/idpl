@@ -31,7 +31,7 @@ public class TicketMathMaker {
                         Collectors.teeing(
                                 collectMedian(),
                                 Collectors.summarizingInt(entry -> entry.getKey() * entry.getValue()),
-                                (median, average) -> average.getAverage()
+                                (median, average) -> average.getAverage() - median.doubleValue()
                         )
                 );
         return new Result(minTimeForCarrier, div);
@@ -47,10 +47,10 @@ public class TicketMathMaker {
         return newVal;
     }
 
-    private static Collector<Map.Entry<Integer, Integer>, Object, Integer> collectMedian() {
+    private static Collector<Map.Entry<Integer, Integer>, ?, Integer> collectMedian() {
         return Collectors.collectingAndThen(
                 Collectors.maxBy(Comparator.comparingInt(Map.Entry::getValue)),
-                res -> res.orElseThrow().getValue()
+                res -> res.orElseThrow().getKey()
         );
     }
 }
