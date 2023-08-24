@@ -3,7 +3,6 @@ package com.lampirg;
 import com.lampirg.json.Ticket;
 
 import java.time.Duration;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collector;
@@ -27,17 +26,18 @@ public class TicketMathMaker {
     }
 
     private static Collector<Ticket, ?, Map<String, Duration>> getMapWithCarriersAndMinDurations() {
-        return groupingBy(
+        return toMap(
                 Ticket::getCarrier,
-                collectingAndThen(
-                        minBy(Comparator.comparing(TicketMathMaker::getDuration)),
-                        optionalTicket -> getDuration(optionalTicket.orElseThrow())
-                )
+                Ticket::getDuration,
+                TicketMathMaker::min
         );
     }
 
-    private static Duration getDuration(Ticket ticket) {
-        return Duration.between(ticket.getDepartureDateTime(), ticket.getArrivalDateTime());
+    private static Duration min(Duration oldVal, Duration newVal) {
+        if (oldVal.compareTo(newVal) < 0) {
+            return oldVal;
+        }
+        return newVal;
     }
 
     private static Collector<Ticket, ?, Double> getDivBetweenAverageAndMedian() {
