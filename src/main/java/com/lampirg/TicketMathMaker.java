@@ -5,8 +5,8 @@ import com.lampirg.json.Ticket;
 import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
-import java.util.function.Predicate;
+import java.util.Map;
+import java.util.stream.Collector;
 
 import static java.util.stream.Collectors.*;
 
@@ -16,18 +16,8 @@ public class TicketMathMaker {
         return tickets.stream()
                 .filter(TicketMathMaker::fromVvoToTlv)
                 .collect(teeing(
-                        groupingBy(
-                                Ticket::getCarrier,
-                                collectingAndThen(
-                                        minBy(Comparator.comparing(ticket -> Duration.between(ticket.getDepartureDateTime(), ticket.getArrivalDateTime()))),
-                                        ticket -> Duration.between(ticket.orElseThrow().getDepartureDateTime(), ticket.orElseThrow().getArrivalDateTime())
-                                        )
-                        ),
-                        teeing(
-                                averagingInt(Ticket::getPrice),
-                                mapping(Ticket::getPrice, collectingAndThen(toList(), TicketMathMaker::countMedian)),
-                                (avg, median) -> avg - median
-                        ),
+                        getMapWithCarriersAndMinDurations(),
+                        getDivBetweenAverageAndMedian(),
                         Result::new
                 ));
     }
@@ -36,17 +26,26 @@ public class TicketMathMaker {
         return ticket.getOrigin().equals("VVO") && ticket.getDestination().equals("TLV");
     }
 
-    private static Duration min(Duration oldVal, Duration newVal) {
-        if (oldVal.compareTo(newVal) < 0)
-            return oldVal;
-        return newVal;
+    private static Collector<Ticket, ?, Map<String, Duration>> getMapWithCarriersAndMinDurations() {
+        return groupingBy(
+                Ticket::getCarrier,
+                collectingAndThen(
+                        minBy(Comparator.comparing(TicketMathMaker::getDuration)),
+                        optionalTicket -> getDuration(optionalTicket.orElseThrow())
+                )
+        );
     }
 
-    private static double countDiv(List<Integer> pricesCount, double avg) {
-        avg /= pricesCount.size();
-        pricesCount.sort(Comparator.naturalOrder());
-        double median = countMedian(pricesCount);
-        return avg - median;
+    private static Duration getDuration(Ticket ticket) {
+        return Duration.between(ticket.getDepartureDateTime(), ticket.getArrivalDateTime());
+    }
+
+    private static Collector<Ticket, ?, Double> getDivBetweenAverageAndMedian() {
+        return teeing(
+                averagingInt(Ticket::getPrice),
+                mapping(Ticket::getPrice, collectingAndThen(toList(), TicketMathMaker::countMedian)),
+                (avg, median) -> avg - median
+        );
     }
 
     private static double countMedian(List<Integer> pricesCount) {
