@@ -3,29 +3,33 @@ package com.lampirg;
 import com.lampirg.json.Ticket;
 
 import java.time.Duration;
-import java.util.*;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Predicate;
+
+import static java.util.stream.Collectors.*;
 
 public class TicketMathMaker {
 
     public static Result countVvoAndTlv(List<Ticket> tickets) {
-        Map<String, Duration> minTimeForCarrier = new HashMap<>();
-        List<Integer> pricesCount = new ArrayList<>();
-        double avg = 0;
-        for (Ticket ticket : tickets) {
-            if (!fromVvoToTlv(ticket))
-                continue;
-            minTimeForCarrier.merge(
-                    ticket.getCarrier(),
-                    Duration.between(ticket.getDepartureDateTime(), ticket.getArrivalDateTime()),
-                    TicketMathMaker::min
-            );
-            pricesCount.add(ticket.getPrice());
-            avg += ticket.getPrice();
-        }
-        double div = countDiv(pricesCount, avg);
-        return new Result(minTimeForCarrier, div);
+        return tickets.stream()
+                .filter(TicketMathMaker::fromVvoToTlv)
+                .collect(teeing(
+                        groupingBy(
+                                Ticket::getCarrier,
+                                collectingAndThen(
+                                        minBy(Comparator.comparing(ticket -> Duration.between(ticket.getDepartureDateTime(), ticket.getArrivalDateTime()))),
+                                        ticket -> Duration.between(ticket.orElseThrow().getDepartureDateTime(), ticket.orElseThrow().getArrivalDateTime())
+                                        )
+                        ),
+                        teeing(
+                                averagingInt(Ticket::getPrice),
+                                mapping(Ticket::getPrice, collectingAndThen(toList(), TicketMathMaker::countMedian)),
+                                (avg, median) -> avg - median
+                        ),
+                        Result::new
+                ));
     }
 
     private static boolean fromVvoToTlv(Ticket ticket) {
